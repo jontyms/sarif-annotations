@@ -1,7 +1,7 @@
 # SARIF to GitHub Annotations
 
-[![GitHub](https://img.shields.io/github/license/yourusername/sarif-annotations)](LICENSE)
-[![GitHub release](https://img.shields.io/github/v/release/yourusername/sarif-annotations)](https://github.com/yourusername/sarif-annotations/releases)
+[![GitHub](https://img.shields.io/github/license/jontyms/sarif-annotations)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/jontyms/sarif-annotations)](https://github.com/jontyms/sarif-annotations/releases)
 
 A GitHub Action that converts SARIF 2.1.0 files to GitHub annotations, making static analysis results visible directly in your pull requests and workflow runs.
 
@@ -27,15 +27,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       # Run your static analysis tool (example with ESLint)
       - name: Run ESLint
         run: npx eslint . --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif
         continue-on-error: true
-      
+
       # Convert SARIF to annotations
       - name: Annotate with SARIF results
-        uses: yourusername/sarif-annotations@v1
+        uses: jontyms/sarif-annotations@v1
         with:
           sarif-file: 'eslint-results.sarif'
 ```
@@ -44,7 +44,7 @@ jobs:
 
 ```yaml
 - name: Annotate with SARIF results
-  uses: yourusername/sarif-annotations@v1
+  uses: jontyms/sarif-annotations@v1
   with:
     sarif-file: 'analysis-results.sarif'
     annotation-level: 'warning'
@@ -115,7 +115,7 @@ This action works with any tool that generates SARIF 2.1.0 files. Popular tools 
   continue-on-error: true
 
 - name: Annotate ESLint results
-  uses: yourusername/sarif-annotations@v1
+  uses: jontyms/sarif-annotations@v1
   with:
     sarif-file: 'eslint.sarif'
 ```
@@ -130,7 +130,7 @@ This action works with any tool that generates SARIF 2.1.0 files. Popular tools 
   continue-on-error: true
 
 - name: Annotate Semgrep results
-  uses: yourusername/sarif-annotations@v1
+  uses: jontyms/sarif-annotations@v1
   with:
     sarif-file: 'semgrep.sarif'
     annotation-level: 'error'
@@ -151,13 +151,13 @@ This action works with any tool that generates SARIF 2.1.0 files. Popular tools 
 
 # Process each file in separate steps
 - name: Annotate security results
-  uses: yourusername/sarif-annotations@v1
+  uses: jontyms/sarif-annotations@v1
   with:
     sarif-file: 'security.sarif'
     annotation-level: 'error'
 
 - name: Annotate quality results
-  uses: yourusername/sarif-annotations@v1
+  uses: jontyms/sarif-annotations@v1
   with:
     sarif-file: 'quality.sarif'
     annotation-level: 'warning'
@@ -203,7 +203,7 @@ Enable debug logging to see detailed processing information:
 
 ```yaml
 - name: Annotate with debug
-  uses: yourusername/sarif-annotations@v1
+  uses: jontyms/sarif-annotations@v1
   with:
     sarif-file: 'results.sarif'
   env:
@@ -226,7 +226,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 ### Development Setup
 
 ```bash
-git clone https://github.com/yourusername/sarif-annotations.git
+git clone https://github.com/jontyms/sarif-annotations.git
 cd sarif-annotations
 python -m pip install -r requirements.txt
 ```
@@ -250,4 +250,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Note**: Replace `yourusername/sarif-annotations` with your actual GitHub repository path when using this action.
+**Note**: Replace `jontyms/sarif-annotations` with your actual GitHub repository path when using this action.
