@@ -78,12 +78,7 @@ jobs:
           echo "" >> changelog.md
 
           # Generate changelog from commits
-          git log $COMMIT_RANGE --pretty=format:"- %s (@%an)" --reverse >> changelog.md
-
-          # Add contributors
-          echo "" >> changelog.md
-          echo "## Contributors" >> changelog.md
-          git log $COMMIT_RANGE --pretty=format:"%an" | sort | uniq | sed 's/^/- @/' >> changelog.md
+          git log $COMMIT_RANGE --pretty=format:"- %s" --reverse >> changelog.md
 
           echo "Generated changelog:"
           cat changelog.md
@@ -118,68 +113,3 @@ jobs:
           # Create new major version tag
           git tag $MAJOR_VERSION
           git push origin $MAJOR_VERSION
-
-  post-release:
-    name: Post Release Tasks
-    runs-on: ubuntu-latest
-    needs: [validate, release]
-    if: always() && needs.release.result == 'success'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Update documentation
-        run: |
-          VERSION="${{ needs.validate.outputs.version }}"
-          MAJOR_VERSION=$(echo $VERSION | sed 's/v\([0-9]*\).*/v\1/')
-
-          echo "## 📢 Release $VERSION is now available!" > release_notes.md
-          echo "" >> release_notes.md
-          echo "You can now use this action with:" >> release_notes.md
-          echo "" >> release_notes.md
-          echo '```yaml' >> release_notes.md
-          echo "- uses: ${{ github.repository }}@$VERSION" >> release_notes.md
-          echo '```' >> release_notes.md
-          echo "" >> release_notes.md
-          echo "Or use the major version tag for automatic updates:" >> release_notes.md
-          echo "" >> release_notes.md
-          echo '```yaml' >> release_notes.md
-          echo "- uses: ${{ github.repository }}@$MAJOR_VERSION" >> release_notes.md
-          echo '```' >> release_notes.md
-
-          cat release_notes.md
-
-      - name: Create issue for documentation update
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const version = '${{ needs.validate.outputs.version }}';
-            const majorVersion = version.replace(/v(\d+).*/, 'v$1');
-
-            const issueBody = `## 📚 Update Documentation for Release ${version}
-
-            This issue tracks documentation updates needed for the new release.
-
-            ### Tasks
-            - [ ] Update README.md examples to use ${version} or ${majorVersion}
-            - [ ] Update any hardcoded version references
-            - [ ] Review and update feature documentation
-            - [ ] Update changelog if needed
-            - [ ] Check marketplace listing is up to date
-
-            ### Release Information
-            - **Version**: ${version}
-            - **Major Version Tag**: ${majorVersion}
-            - **Is Prerelease**: ${{ needs.validate.outputs.is-prerelease }}
-
-            This issue will be automatically closed when the release is complete.
-            `;
-
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `📚 Documentation updates for ${version}`,
-              body: issueBody,
-              labels: ['documentation', 'release']
-            });
