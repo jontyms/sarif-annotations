@@ -1,49 +1,53 @@
-name: 'SARIF to GitHub Annotations'
-description: 'Convert SARIF 2.1.0 files to GitHub annotations for better code review visibility'
-author: 'sarif-annotations'
+name: "SARIF to GitHub Annotations"
+description: "Convert SARIF 2.1.0 files to GitHub annotations for better code review visibility"
+author: "sarif-annotations"
 
 inputs:
   sarif-file:
-    description: 'Path to the SARIF file to convert'
+    description: "Path to the SARIF file to convert"
     required: true
   annotation-level:
-    description: 'Default annotation level (error, warning, notice)'
+    description: "Default annotation level (error, warning, notice)"
     required: false
-    default: 'warning'
+    default: "warning"
   max-annotations:
-    description: 'Maximum number of annotations to create (GitHub limit is 10 per step)'
+    description: "Maximum number of annotations to create (GitHub limit is 10 per step)"
     required: false
-    default: '10'
+    default: "10"
   filter-rules:
-    description: 'Comma-separated list of rule IDs to include (empty = all rules)'
+    description: "Comma-separated list of rule IDs to include (empty = all rules)"
     required: false
-    default: ''
+    default: ""
   exclude-rules:
-    description: 'Comma-separated list of rule IDs to exclude'
+    description: "Comma-separated list of rule IDs to exclude"
     required: false
-    default: ''
+    default: ""
   working-directory:
-    description: 'Working directory for relative file paths'
+    description: "Working directory for relative file paths"
     required: false
-    default: '.'
+    default: "."
 
 outputs:
   annotations-created:
-    description: 'Number of annotations created'
+    description: "Number of annotations created"
+    value: ${{ steps.convert.outputs.annotations-created }}
   results-processed:
-    description: 'Total number of SARIF results processed'
+    description: "Total number of SARIF results processed"
+    value: ${{ steps.convert.outputs.results-processed }}
   errors-found:
-    description: 'Number of error-level results found'
+    description: "Number of error-level results found"
+    value: ${{ steps.convert.outputs.errors-found }}
   warnings-found:
-    description: 'Number of warning-level results found'
+    description: "Number of warning-level results found"
+    value: ${{ steps.convert.outputs.warnings-found }}
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: "3.11"
 
     - name: Install dependencies
       shell: bash
@@ -52,6 +56,7 @@ runs:
         pip install -r ${{ github.action_path }}/requirements.txt
 
     - name: Convert SARIF to Annotations
+      id: convert
       shell: bash
       env:
         SARIF_FILE: ${{ inputs.sarif-file }}
@@ -65,5 +70,5 @@ runs:
         python ${{ github.action_path }}/sarif_converter.py
 
 branding:
-  icon: 'alert-triangle'
-  color: 'orange'
+  icon: "alert-triangle"
+  color: "orange"
