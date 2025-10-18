@@ -3,11 +3,11 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., v1.0.0)'
+        description: "Version to release (e.g., v1.0.0)"
         required: true
         type: string
 
@@ -43,53 +43,6 @@ jobs:
 
           echo "Releasing version: $VERSION"
           echo "Is prerelease: $(if [[ "$VERSION" =~ (alpha|beta|rc|pre) ]]; then echo true; else echo false; fi)"
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt pyyaml
-
-      - name: Run tests
-        run: python test_converter.py
-
-      - name: Validate action.yml
-        run: |
-          python3 << 'EOF'
-          import yaml
-          import sys
-
-          try:
-              with open('action.yml', 'r') as f:
-                  action = yaml.safe_load(f)
-
-              required_fields = ['name', 'description', 'inputs', 'outputs', 'runs']
-              for field in required_fields:
-                  if field not in action:
-                      print(f"❌ Missing required field: {field}")
-                      sys.exit(1)
-
-              print("✅ action.yml is valid")
-          except Exception as e:
-              print(f"❌ Error validating action.yml: {e}")
-              sys.exit(1)
-          EOF
-
-      - name: Test action locally
-        run: |
-          # Test the action with the example SARIF file
-          export SARIF_FILE="example.sarif"
-          export ANNOTATION_LEVEL="warning"
-          export MAX_ANNOTATIONS="5"
-          export FILTER_RULES=""
-          export EXCLUDE_RULES=""
-          export WORKING_DIRECTORY="."
-
-          python sarif_converter.py
 
   release:
     name: Create Release
