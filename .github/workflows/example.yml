@@ -1,0 +1,223 @@
+name: Example SARIF to Annotations Workflow
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  analyze-and-annotate:
+    name: Static Analysis with Annotations
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install analysis tools
+        run: |
+          pip install bandit[toml] semgrep ansible-lint
+          npm install -g @microsoft/eslint-formatter-sarif eslint
+
+      # Example 1: Python security analysis with Bandit
+      - name: Run Bandit security analysis
+        run: |
+          bandit -r . -f sarif -o bandit-results.sarif || true
+        continue-on-error: true
+
+      - name: Annotate Bandit results
+        uses: ./  # Use local action for testing
+        with:
+          sarif-file: 'bandit-results.sarif'
+          annotation-level: 'error'
+          max-annotations: 10
+        id: bandit-annotations
+
+      # Example 2: Multi-language analysis with Semgrep
+      - name: Run Semgrep analysis
+        run: |
+          semgrep --config=auto --sarif --output=semgrep-results.sarif . || true
+        continue-on-error: true
+
+      - name: Annotate Semgrep results
+        uses: ./
+        with:
+          sarif-file: 'semgrep-results.sarif'
+          annotation-level: 'warning'
+          exclude-rules: 'generic.secrets.gitleaks.generic-api-key'
+          max-annotations: 8
+        id: semgrep-annotations
+
+      # Example 3: Ansible playbook analysis (if .yml files exist)
+      - name: Check for Ansible files
+        id: check-ansible
+        run: |
+          if find . -name "*.yml" -o -name "*.yaml" | grep -v ".github" | head -1; then
+            echo "ansible-files=true" >> $GITHUB_OUTPUT
+          else
+            echo "ansible-files=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Ansible Lint
+        if: steps.check-ansible.outputs.ansible-files == 'true'
+        run: |
+          ansible-lint --sarif-file ansible-results.sarif . || true
+        continue-on-error: true
+
+      - name: Annotate Ansible Lint results
+        if: steps.check-ansible.outputs.ansible-files == 'true'
+        uses: ./
+        with:
+          sarif-file: 'ansible-results.sarif'
+          annotation-level: 'warning'
+          filter-rules: 'name[play],yaml[truthy]'
+        id: ansible-annotations
+
+      # Example 4: Using the provided example SARIF file
+      - name: Annotate example SARIF
+        uses: ./
+        with:
+          sarif-file: 'example.sarif'
+          annotation-level: 'warning'
+          max-annotations: 5
+        id: example-annotations
+
+      # Summary step showing all outputs
+      - name: Analysis Summary
+        run: |
+          echo "## 📊 Static Analysis Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Tool | Annotations Created | Results Processed | Errors | Warnings |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------------------|------------------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Bandit | ${{ steps.bandit-annotations.outputs.annotations-created || '0' }} | ${{ steps.bandit-annotations.outputs.results-processed || '0' }} | ${{ steps.bandit-annotations.outputs.errors-found || '0' }} | ${{ steps.bandit-annotations.outputs.warnings-found || '0' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Semgrep | ${{ steps.semgrep-annotations.outputs.annotations-created || '0' }} | ${{ steps.semgrep-annotations.outputs.results-processed || '0' }} | ${{ steps.semgrep-annotations.outputs.errors-found || '0' }} | ${{ steps.semgrep-annotations.outputs.warnings-found || '0' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Example | ${{ steps.example-annotations.outputs.annotations-created || '0' }} | ${{ steps.example-annotations.outputs.results-processed || '0' }} | ${{ steps.example-annotations.outputs.errors-found || '0' }} | ${{ steps.example-annotations.outputs.warnings-found || '0' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total annotations created:** $(( ${{ steps.bandit-annotations.outputs.annotations-created || 0 }} + ${{ steps.semgrep-annotations.outputs.annotations-created || 0 }} + ${{ steps.example-annotations.outputs.annotations-created || 0 }} ))" >> $GITHUB_STEP_SUMMARY
+
+  test-action:
+    name: Test Action Functionality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test with non-existent file (should fail gracefully)
+        uses: ./
+        with:
+          sarif-file: 'non-existent.sarif'
+        continue-on-error: true
+        id: test-missing-file
+
+      - name: Test with example file and all options
+        uses: ./
+        with:
+          sarif-file: 'example.sarif'
+          annotation-level: 'notice'
+          max-annotations: 3
+          filter-rules: 'yaml[truthy],name[play]'
+          working-directory: '.'
+        id: test-all-options
+
+      - name: Verify outputs are set
+        run: |
+          echo "Annotations created: ${{ steps.test-all-options.outputs.annotations-created }}"
+          echo "Results processed: ${{ steps.test-all-options.outputs.results-processed }}"
+          echo "Errors found: ${{ steps.test-all-options.outputs.errors-found }}"
+          echo "Warnings found: ${{ steps.test-all-options.outputs.warnings-found }}"
+
+          # Verify outputs are numeric
+          if ! [[ "${{ steps.test-all-options.outputs.annotations-created }}" =~ ^[0-9]+$ ]]; then
+            echo "❌ annotations-created output is not numeric"
+            exit 1
+          fi
+          echo "✅ All outputs are properly formatted"
+
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create large SARIF file for testing
+        run: |
+          python3 << 'EOF'
+          import json
+
+          # Create a large SARIF file with many results
+          sarif = {
+              "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.5.json",
+              "version": "2.1.0",
+              "runs": [{
+                  "tool": {
+                      "driver": {
+                          "name": "test-tool",
+                          "version": "1.0.0",
+                          "rules": [{
+                              "id": "test-rule",
+                              "shortDescription": {"text": "Test rule for performance testing"},
+                              "defaultConfiguration": {"level": "warning"}
+                          }]
+                      }
+                  },
+                  "results": []
+              }]
+          }
+
+          # Add 100 results to test performance and limits
+          for i in range(100):
+              result = {
+                  "ruleId": "test-rule",
+                  "level": "warning",
+                  "message": {"text": f"Test finding #{i+1}"},
+                  "locations": [{
+                      "physicalLocation": {
+                          "artifactLocation": {"uri": f"test-file-{i%10}.py"},
+                          "region": {"startLine": i+1, "startColumn": 1}
+                      }
+                  }]
+              }
+              sarif["runs"][0]["results"].append(result)
+
+          with open("large-test.sarif", "w") as f:
+              json.dump(sarif, f, indent=2)
+
+          print(f"Created SARIF file with {len(sarif['runs'][0]['results'])} results")
+          EOF
+
+      - name: Test with large SARIF file
+        uses: ./
+        with:
+          sarif-file: 'large-test.sarif'
+          max-annotations: 10  # Should respect the limit
+        id: performance-test
+
+      - name: Verify performance test results
+        run: |
+          annotations_created="${{ steps.performance-test.outputs.annotations-created }}"
+          results_processed="${{ steps.performance-test.outputs.results-processed }}"
+
+          echo "Performance test results:"
+          echo "- Annotations created: $annotations_created"
+          echo "- Results processed: $results_processed"
+
+          if [ "$annotations_created" -gt 10 ]; then
+            echo "❌ Created more annotations than the limit"
+            exit 1
+          fi
+
+          if [ "$results_processed" -ne 100 ]; then
+            echo "❌ Should have processed 100 results"
+            exit 1
+          fi
+
+          echo "✅ Performance test passed"
